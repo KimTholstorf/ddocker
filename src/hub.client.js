@@ -8,7 +8,6 @@ const GITHUB_URL = document.body.dataset.github || "";
 // unless PUBLIC_SEARCH is set.
 const SEARCH = document.body.dataset.search === "on";
 const GUIDE_LABEL = MODE === "private" ? "client setup" : "about &amp; self-hosting";
-const HOST_ARCH = navigator.userAgent.includes("Intel") && !navigator.userAgent.includes("Mac") ? "amd64" : "arm64";
 let searchTimer;
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -215,7 +214,7 @@ function showHome(guideOpen = false) {
   view.innerHTML = `
     <div class="steps">${SEARCH ? `
       <div><b><em>01</em>search</b><p>find an image and read its README, even when hub.docker.com is blocked.</p></div>
-      <div><b><em>02</em>pick a tag</b><p>check dates, platforms and size, then copy the pull or compose line.</p></div>
+      <div><b><em>02</em>pick a tag</b><p>filter the tag list, then copy the pull or compose line for it.</p></div>
       <div><b><em>03</em>pull</b><p>with this host in <code>registry-mirrors</code>, <code>docker pull</code> just works.</p></div>` : `
       <div><b><em>01</em>self-host</b><p>one small Worker on your own domain, on Cloudflare's free plan.</p></div>
       <div><b><em>02</em>hand out keys</b><p>everyone gets a secret hostname that doubles as their access key.</p></div>
@@ -304,11 +303,15 @@ async function showRepo(ns, name) {
   try { repo = await api(`/hub/api/repo/${ns}/${name}`); }
   catch (err) { view.querySelector(".loading").outerHTML = `<p class="error">${esc(err.message)}</p>`; return; }
 
+  const facts = [];
+  if (repo.pulls != null) facts.push(`<span>↓ <b>${compact(repo.pulls)}</b> pulls</span>`);
+  if (repo.stars != null) facts.push(`<span>★ <b>${compact(repo.stars)}</b> stars</span>`);
+
   view.innerHTML = `
     <a class="back" href="#/">← cd ..</a>
-    <h1 class="repo-title">${esc(display)}${ns === "library" ? '<span class="official">[official]</span>' : ""}</h1>
+    <h1 class="repo-title">${esc(display)}${repo.official ? '<span class="official">[official]</span>' : ""}</h1>
     ${repo.description ? `<p class="lede">${esc(repo.description)}</p>` : ""}
-    <div class="facts"><span>↓ <b>${compact(repo.pulls)}</b> pulls</span><span>★ <b>${compact(repo.stars)}</b> stars</span><span>updated <b>${ago(repo.updated)}</b></span></div>
+    ${facts.length ? `<div class="facts">${facts.join("")}</div>` : ""}
     <div class="term">
       <div class="term-bar"><span class="dots">■■■</span><span>~/pull · via mirror</span></div>
       <div class="term-line"><span class="p">$</span><code id="cmd-pull"></code><button class="copy" data-copy="cmd-pull">[copy]</button></div>
@@ -316,18 +319,8 @@ async function showRepo(ns, name) {
     </div>
     <div class="sec"><b>tags</b><span id="tag-count"></span></div>
     <label class="prompt-field grep"><span>grep</span><input type="search" id="tag-q" placeholder="filter tags, e.g. 16-alpine" autocomplete="off" spellcheck="false" aria-label="Filter tags"></label>
-    <table class="tags"><thead><tr><th>tag</th><th>updated</th><th class="col-platforms">platforms</th><th style="text-align:right">${HOST_ARCH}</th></tr></thead><tbody></tbody></table>
-    <div id="tag-more"></div>
-    ${repo.hasReadme ? `<div class="sec"><b>readme</b></div><article class="readme"><p class="muted loading">loading</p></article>` : ""}`;
-
-  const readme = view.querySelector(".readme");
-  if (readme) {
-    // Sanitized server-side; the page CSP also blocks any inline script.
-    fetch(`/hub/api/readme/${ns}/${name}`)
-      .then((r) => (r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((html) => { readme.innerHTML = html; })
-      .catch((err) => { readme.innerHTML = `<p class="error">${esc(err.message)}</p>`; });
-  }
+    <table class="tags"><thead><tr><th>tag</th><th class="col-cmd">pull command</th></tr></thead><tbody></tbody></table>
+    <div id="tag-more"></div>`;
 
   const setTag = (tag) => {
     document.getElementById("cmd-pull").textContent = `docker pull ${display}:${tag}`;
@@ -351,39 +344,40 @@ async function showRepo(ns, name) {
 
   let filterTimer;
   const tagQ = document.getElementById("tag-q");
-  tagQ.oninput = () => { clearTimeout(filterTimer); filterTimer = setTimeout(() => loadTags(ns, name, tagQ.value.trim(), 1), 300); };
-  loadTags(ns, name, "", 1);
+  tagQ.oninput = () => { clearTimeout(filterTimer); filterTimer = setTimeout(() => loadTags(ns, name, tagQ.value.trim(), ""), 300); };
+  loadTags(ns, name, "", "");
 }
 
-async function loadTags(ns, name, filter, page) {
+// The registry pages through tags with a cursor and gives names only, so
+// "more" keeps scanning from the last tag seen.
+let tagsShown = 0;
+
+async function loadTags(ns, name, filter, last) {
   const tbody = view.querySelector(".tags tbody");
   const moreBox = document.getElementById("tag-more");
   if (!tbody) return;
-  if (page === 1) tbody.innerHTML = `<tr><td colspan="4" class="muted loading">loading tags</td></tr>`;
+  if (!last) { tbody.innerHTML = `<tr><td colspan="2" class="muted loading">loading tags</td></tr>`; tagsShown = 0; }
   try {
-    const data = await api(`/hub/api/tags/${ns}/${name}?q=${encodeURIComponent(filter)}&page=${page}`);
+    const data = await api(`/hub/api/tags/${ns}/${name}?q=${encodeURIComponent(filter)}&last=${encodeURIComponent(last)}`);
     if ((document.getElementById("tag-q")?.value.trim() ?? "") !== filter) return;
-    if (page === 1) tbody.innerHTML = "";
-    document.getElementById("tag-count").textContent = `${compact(data.count)} total`;
-    if (!data.tags.length && page === 1) tbody.innerHTML = `<tr><td colspan="4" class="muted">no matching tags</td></tr>`;
-    tbody.insertAdjacentHTML("beforeend", data.tags.map((t) => {
-      const host = t.platforms.find((p) => p.os === "linux" && p.arch === HOST_ARCH);
-      const archs = t.platforms.map((p) => {
-        const label = p.variant && p.arch === "arm" ? `arm/${p.variant}` : p.arch;
-        return `<span class="arch${p.arch === HOST_ARCH ? " host" : ""}">${esc(label)}</span>`;
-      }).join("");
-      return `<tr data-tag="${esc(t.name)}"><td class="tagname">${esc(t.name)}</td>
-        <td class="when">${ago(t.updated)}</td><td class="col-platforms">${archs}</td>
-        <td class="num">${host ? bytes(host.size) : '<span class="muted">—</span>'}</td></tr>`;
-    }).join(""));
+    if (!last) tbody.innerHTML = "";
+    tagsShown += data.tags.length;
+    document.getElementById("tag-count").textContent = filter
+      ? `${tagsShown} matching`
+      : `${tagsShown}${data.next ? "+" : ""}`;
+    if (!tagsShown) tbody.innerHTML = `<tr><td colspan="2" class="muted">no matching tags in the first ${data.scanned} tags</td></tr>`;
+    const display = ns === "library" ? name : `${ns}/${name}`;
+    tbody.insertAdjacentHTML("beforeend", data.tags.map((t) => `
+      <tr data-tag="${esc(t.name)}"><td class="tagname">${esc(t.name)}</td>
+      <td class="col-cmd mono muted">docker pull ${esc(display)}:${esc(t.name)}</td></tr>`).join(""));
     moreBox.innerHTML = "";
-    if (data.hasNext) {
+    if (data.next) {
       const more = Object.assign(document.createElement("button"), { className: "btn", textContent: "[ more tags ↓ ]" });
-      more.onclick = () => loadTags(ns, name, filter, page + 1);
+      more.onclick = () => loadTags(ns, name, filter, data.next);
       moreBox.append(more);
     }
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="4" class="error">${esc(err.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="2" class="error">${esc(err.message)}</td></tr>`;
   }
 }
 

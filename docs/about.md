@@ -33,9 +33,10 @@ Docker quietly goes back to docker.io.
 A pull-through mirror that works with Docker Desktop, OrbStack, Colima, Podman and Docker
 Engine on Linux.
 
-Every mirror hostname also serves this page, so you can search Docker Hub, compare tags and
-read an image's README from a network that blocks hub.docker.com. Open the client setup
-section there and the commands already have that person's hostname in them.
+Every mirror hostname also serves this page, so you can search Docker Hub and filter an image's
+tags from a network that blocks hub.docker.com, then copy the pull command for the tag you
+want. Open the client setup section there and the commands already have that person's hostname
+in them.
 
 There's also a script that tells you in a few seconds whether the network you're sitting on
 blocks Docker.

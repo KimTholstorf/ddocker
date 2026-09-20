@@ -117,24 +117,26 @@ macOS and restarts it. Run it again after `podman machine init`, which wipes the
 
 ## Docker Hub browser
 
-Every mirror hostname, and the public page, carries a small Docker Hub browser for the times
-hub.docker.com is blocked. You can search images, see tags with their update dates, platforms
-and the size for your architecture, click a tag to copy a `docker pull` command or a compose
-`image:` line, and read the image's README.
+Every mirror hostname carries a small Docker Hub browser for the times hub.docker.com is
+blocked. Search for an image, filter its tags, click one, and copy a `docker pull` command or a
+compose `image:` line.
 
-The Worker only calls Docker Hub's read-only search, repository and tag endpoints, so it isn't
-a general proxy for hub.docker.com. READMEs are written by image publishers, so the Worker
-strips them down to plain document markup before they reach the page. The page's security
-policy also blocks inline scripts, and `Referrer-Policy: no-referrer` keeps key hostnames out
-of the `Referer` header when you follow a link.
+It reads from two upstreams that Cloudflare Workers can actually reach:
 
-Hub API calls from a mirror hostname are authenticated with your `HUB_TOKEN`, because Docker Hub
-rate-limits anonymous API calls per IP address and Cloudflare's addresses are shared, so those
-limits are usually already spent by other people.
+| | Source | Notes |
+|---|---|---|
+| Search | `index.docker.io/v1/search` | name, description, pulls, stars, official flag |
+| Tags | `registry-1.docker.io/v2/<repo>/tags/list` | names only, alphabetical, authenticated with `HUB_TOKEN` |
 
-The public page doesn't get the browser by default: searches there would be anonymous, and
-letting strangers search on your Docker Hub account is not a good trade. `PUBLIC_SEARCH=1`
-turns it on anyway, still anonymous, so expect Docker Hub to answer many searches with 429.
+The `hub.docker.com` API isn't used at all. It rate-limits per IP address, and Cloudflare's
+shared addresses sit permanently past the limit, so every call from a Worker gets a 429,
+including the call that would exchange a token for authentication. That's also why the browser
+has no update dates, image sizes, platform lists or READMEs: those exist only in that API.
+
+Tag filtering pages through the registry, up to about 1200 tags per request, because the
+registry can't filter server-side.
+
+The public page doesn't get the browser by default. `PUBLIC_SEARCH=1` turns it on.
 
 ## Cost
 

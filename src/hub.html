@@ -201,6 +201,7 @@ body.home main { padding-top: 0; padding-bottom: 22px; }
 .tags tr.selected td.tagname::before { content: "▶ "; }
 .tags td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .tags td.when { white-space: nowrap; color: var(--muted); }
+.tags td.col-cmd { font-size: 12px; }
 .arch { display: inline-block; font-size: 12px; margin-right: 10px; color: var(--muted); white-space: nowrap; }
 .arch.host { color: var(--brand); font-weight: 600; }
 .arch.host::before { content: "["; } .arch.host::after { content: "]"; }
@@ -230,7 +231,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 12px; flex-wr
   .logo .name { display: none; }
   .steps { grid-template-columns: 1fr; }
   .steps div + div { border-left: 0; border-top: 1px solid var(--line); }
-  .col-platforms { display: none; }
+  .col-cmd { display: none; }
   .results a { grid-template-columns: 1fr; }
   .results .stats { text-align: left; }
   .hero .wrap { padding-top: 54px; padding-bottom: 110px; }
