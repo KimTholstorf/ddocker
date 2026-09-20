@@ -46,7 +46,8 @@ export default {
     if (isRegistry) return handleRegistry(request, url);
 
     if (url.pathname === "/hub" || url.pathname === "/hub/") return Response.redirect(`${url.origin}/`, 301);
-    if (url.pathname === "/" || url.pathname.startsWith("/hub/")) return handleHub(url, env, mode);
+    const isIcon = url.pathname === "/favicon.svg" || url.pathname === "/favicon.ico" || url.pathname === "/icon-180.png";
+    if (url.pathname === "/" || url.pathname.startsWith("/hub/") || isIcon) return handleHub(url, env, mode);
     return new Response("not found", { status: 404 });
   },
 };

@@ -13,6 +13,9 @@ import HUB_SCRIPT from "./hub.client.js";
 import SETUP_GUIDE from "../docs/setup-guide.md";
 import ABOUT_GUIDE from "../docs/about.md";
 import MONO_FONT from "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2";
+import FAVICON_SVG from "./favicon.svg";
+import FAVICON_ICO from "./favicon.ico";
+import ICON_PNG from "./icon-180.png";
 
 const SEARCH_API = "https://index.docker.io/v1/search";
 const REGISTRY = "https://registry-1.docker.io";
@@ -46,6 +49,18 @@ export async function handleHub(url, env, mode) {
     const headers = { ...BASE_HEADERS, "content-type": "text/html; charset=utf-8", "content-security-policy": PAGE_CSP };
     if (mode === "public") delete headers["x-robots-tag"]; // the front page may be indexed
     return new Response(page, { headers });
+  }
+
+  // The wordmark's pixel "dd", from scripts/make-icons.py.
+  const icon = {
+    "/favicon.svg": [FAVICON_SVG, "image/svg+xml"],
+    "/favicon.ico": [FAVICON_ICO, "image/x-icon"],
+    "/icon-180.png": [ICON_PNG, "image/png"],
+  }[url.pathname];
+  if (icon) {
+    return new Response(icon[0], {
+      headers: { ...BASE_HEADERS, "content-type": icon[1], "cache-control": "public, max-age=604800" },
+    });
   }
 
   if (url.pathname === "/hub/app.js") {
