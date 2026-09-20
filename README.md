@@ -54,7 +54,7 @@ for both.
    Leave Bot Fight Mode off, because its challenge stops `docker pull` dead.
 2. Generate a key per person:
    ```bash
-   echo "alice-$(openssl rand -hex 16)"
+   ./new-key.sh alice
    ```
 3. Store the secrets:
    ```bash
@@ -102,6 +102,14 @@ Secrets can come straight from a password manager at deploy time, for example 1P
 [`ddocker-doctor.sh`](ddocker-doctor.sh) tells you in seconds whether this network blocks
 Docker Hub, whether your mirror answers, and whether Docker or Podman is actually configured to
 use it.
+
+[`new-key.sh`](new-key.sh) prints an access key for one person, which is a name plus 128 random
+bits. Add it to `ACCESS_KEYS` and deploy. Pass `--key-only` to get just the key, for scripts
+that feed it somewhere else:
+
+```bash
+KEY=$(./new-key.sh alice --key-only)
+```
 
 [`podman-mirror.sh`](podman-mirror.sh) writes the mirror config into the Podman machine on
 macOS and restarts it. Run it again after `podman machine init`, which wipes the setting.
