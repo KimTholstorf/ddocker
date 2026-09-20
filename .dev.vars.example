@@ -1,0 +1,5 @@
+# Local development settings for `wrangler dev`. Copy to .dev.vars.
+BASE_DOMAIN = "localhost"
+ACCESS_KEYS = "test-key123"
+# Optional: shows the GitHub link in the header and footer.
+# GITHUB_URL = "https://github.com/you/ddocker"

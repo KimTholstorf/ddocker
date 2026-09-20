@@ -1,0 +1,40 @@
+name = "ddocker"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+# No routes here: they depend on your domain. Either pass them when deploying,
+#   wrangler deploy --route "example.com/*" --route "*.example.com/*"
+# or add them to your own copy of this file:
+#   routes = [
+#     { pattern = "example.com/*", zone_name = "example.com" },
+#     { pattern = "*.example.com/*", zone_name = "example.com" },
+#   ]
+# Both need proxied DNS records: "@" and "*", each AAAA 100::.
+
+[vars]
+# Your domain. The bare domain serves the public page; <key>.<domain> are the mirrors.
+# Required: set it here, in .dev.vars, or with --var BASE_DOMAIN:example.com.
+BASE_DOMAIN = ""
+# Optional. Linked from the public page's self-hosting guide and footer.
+GITHUB_URL = ""
+
+# Secrets (wrangler secret put <NAME>, or wrangler secret bulk):
+#   ACCESS_KEYS   comma-separated hostname labels, e.g. "alice-7h3k9q2m,bob-p4x8w1zt"
+#   HUB_USERNAME  optional Docker Hub user, so pulls use authenticated rate limits
+#   HUB_TOKEN     optional Docker Hub read-only personal access token
+
+# The page's script is served as a file, not bundled into the Worker.
+[[rules]]
+type = "Text"
+globs = ["**/*.client.js"]
+fallthrough = true
+
+[[rules]]
+type = "Data"
+globs = ["**/*.woff2"]
+fallthrough = true
+
+[[rules]]
+type = "Text"
+globs = ["**/*.md"]
+fallthrough = true
