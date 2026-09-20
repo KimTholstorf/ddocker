@@ -1,15 +1,28 @@
+```
+█████   █████    ████    █████  ██  ██  ██████  █████
+██  ██  ██  ██  ██  ██  ██      ██ ██   ██      ██  ██
+██  ██  ██  ██  ██  ██  ██      ████    ██      ██  ██
+██  ██  ██  ██  ██  ██  ██      ███     █████   █████
+██  ██  ██  ██  ██  ██  ██      ████    ██      ████
+██  ██  ██  ██  ██  ██  ██      ██ ██   ██      ██ ██
+█████   █████    ████    █████  ██  ██  ██████  ██  ██
+```
+
 # ddocker
 
-A private, read-only Docker Hub mirror on a Cloudflare Worker, for the networks that block
-`hub.docker.com` and Docker's layer CDN: hotels, guest Wi-Fi, corporate gateways that open up
-your TLS traffic and look inside.
+**Dodge, Duck, Dip, Dive, and Dodge Firewalls**
+
+Private pull-through mirror in case of corporate overlords and bitter keepers of the firewall.
+
+A read-only Docker Hub mirror on a Cloudflare Worker, for the networks that block
+`hub.docker.com` and Docker's layer CDN.
 
 Set it once as your docker.io registry mirror and leave it on. Docker uses it when it can be
 reached and falls back to docker.io when it can't. Compose files, Dockerfiles and `docker pull`
 commands all stay as they are.
 
 The same Worker serves a public front page on your bare domain, and a Docker Hub browser on
-every mirror hostname for searching images, comparing tags and reading READMEs.
+every mirror hostname for searching images and finding the pull command for a tag.
 
 ## How it works
 
@@ -37,7 +50,7 @@ shared IP addresses, which run into limits much sooner.
 | | `example.com` (public) | `<key>.example.com` (private) |
 |---|---|---|
 | Page | hero and project intro, no search | hero plus the Docker Hub browser |
-| Docker Hub browser | off (set `PUBLIC_SEARCH=1` to enable, anonymous and rate-limited) | search, tags, READMEs, authenticated with `HUB_TOKEN` |
+| Docker Hub browser | off (set `PUBLIC_SEARCH=1` to enable) | search and tags, using the same token as pulls |
 | Guide section | about & self-hosting, from [docs/about.md](docs/about.md) | client setup, from [docs/setup-guide.md](docs/setup-guide.md), with the reader's hostname filled in |
 | Registry (`/v2`, `/token`) | refused | the mirror |
 | Footer | link to `GITHUB_URL` | mirror status |
