@@ -36,7 +36,8 @@ shared IP addresses, which run into limits much sooner.
 
 | | `example.com` (public) | `<key>.example.com` (private) |
 |---|---|---|
-| Page | same hero, search, tags, READMEs | same |
+| Page | hero and project intro, no search | hero plus the Docker Hub browser |
+| Docker Hub browser | off (set `PUBLIC_SEARCH=1` to enable, anonymous and rate-limited) | search, tags, READMEs, authenticated with `HUB_TOKEN` |
 | Guide section | about & self-hosting, from [docs/about.md](docs/about.md) | client setup, from [docs/setup-guide.md](docs/setup-guide.md), with the reader's hostname filled in |
 | Registry (`/v2`, `/token`) | refused | the mirror |
 | Footer | link to `GITHUB_URL` | mirror status |
@@ -127,9 +128,13 @@ strips them down to plain document markup before they reach the page. The page's
 policy also blocks inline scripts, and `Referrer-Policy: no-referrer` keeps key hostnames out
 of the `Referer` header when you follow a link.
 
-The browser on the public page draws on the same daily Worker request allowance as the mirror.
-If it ever gets heavy traffic, add a Cloudflare rate-limiting rule for `example.com/hub/api/*`.
-The free plan includes one.
+Hub API calls from a mirror hostname are authenticated with your `HUB_TOKEN`, because Docker Hub
+rate-limits anonymous API calls per IP address and Cloudflare's addresses are shared, so those
+limits are usually already spent by other people.
+
+The public page doesn't get the browser by default: searches there would be anonymous, and
+letting strangers search on your Docker Hub account is not a good trade. `PUBLIC_SEARCH=1`
+turns it on anyway, still anonymous, so expect Docker Hub to answer many searches with 429.
 
 ## Cost
 

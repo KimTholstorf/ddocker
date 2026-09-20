@@ -4,6 +4,9 @@ const q = document.getElementById("q");
 // Set by the Worker: "private" on a key hostname (the mirror), "public" on the bare domain.
 const MODE = document.body.dataset.mode === "public" ? "public" : "private";
 const GITHUB_URL = document.body.dataset.github || "";
+// The Hub browser runs on mirror hostnames; the public page is a front page
+// unless PUBLIC_SEARCH is set.
+const SEARCH = document.body.dataset.search === "on";
 const GUIDE_LABEL = MODE === "private" ? "client setup" : "about &amp; self-hosting";
 const HOST_ARCH = navigator.userAgent.includes("Intel") && !navigator.userAgent.includes("Mac") ? "amd64" : "arm64";
 let searchTimer;
@@ -130,7 +133,10 @@ systemDark.addEventListener("change", () => applyTheme(store.get("theme") || "")
 themeBtn.onclick = toggleTheme;
 document.addEventListener("keydown", (e) => {
   if (e.key.toLowerCase() === "t" && !e.metaKey && !e.ctrlKey && !e.altKey && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) toggleTheme();
-  if (e.key === "/" && document.activeElement.tagName !== "INPUT") { e.preventDefault(); (document.getElementById("hero-q") || q).focus(); }
+  if (SEARCH && e.key === "/" && document.activeElement.tagName !== "INPUT") {
+    e.preventDefault();
+    (document.getElementById("hero-q") || q).focus();
+  }
 });
 
 // ── mirror status: /v2/ answers 401 with a token challenge when healthy ───
@@ -154,7 +160,7 @@ if (MODE === "private") {
 // ── routing: #/  #/search/<query>  #/r/<namespace>/<name> ───────────────
 function route() {
   const [, kind, a, b] = location.hash.split("/").map(decodeURIComponent);
-  const home = !(kind === "r" && a && b) && !(kind === "search" && a);
+  const home = !SEARCH || (!(kind === "r" && a && b) && !(kind === "search" && a));
   const guideOpen = kind === "setup";
   document.body.classList.toggle("home", home);
   if (!home) hero.innerHTML = "";
@@ -183,7 +189,11 @@ function onSearchInput(input) {
     location.hash = term ? `#/search/${encodeURIComponent(term)}` : "#/";
   }, 300);
 }
-q.addEventListener("input", () => onSearchInput(q));
+if (SEARCH) {
+  q.addEventListener("input", () => onSearchInput(q));
+} else {
+  q.closest(".prompt-field").remove();
+}
 
 function showHome(guideOpen = false) {
   q.value = "";
@@ -193,20 +203,23 @@ function showHome(guideOpen = false) {
       <div class="wrap">
         ${wordmark("ddocker")}
         <h1>Dodge, Duck, Dip, Dive, and Dodge Firewalls<span class="cursor"></span></h1>
-        <p>private pull-through mirror for hotel wi-fi, guest networks and nosy proxies.</p>
-        <label class="prompt-field"><span>&gt;</span><input id="hero-q" type="search" placeholder="search images, e.g. postgres" autocomplete="off" spellcheck="false" aria-label="Search Docker Hub"></label>
+        <p>private pull-through mirror in case of corporate overlords and bitter keepers of the firewall.</p>
+        ${SEARCH ? `<label class="prompt-field"><span>&gt;</span><input id="hero-q" type="search" placeholder="search images, e.g. postgres" autocomplete="off" spellcheck="false" aria-label="Search Docker Hub"></label>` : ""}
       </div>
     </section>`;
   const heroQ = document.getElementById("hero-q");
-  heroQ.addEventListener("input", () => onSearchInput(heroQ));
-  heroQ.focus({ preventScroll: true });
+  if (heroQ) {
+    heroQ.addEventListener("input", () => onSearchInput(heroQ));
+    heroQ.focus({ preventScroll: true });
+  }
   view.innerHTML = `
-    <div class="steps">
+    <div class="steps">${SEARCH ? `
       <div><b><em>01</em>search</b><p>find an image and read its README, even when hub.docker.com is blocked.</p></div>
       <div><b><em>02</em>pick a tag</b><p>check dates, platforms and size, then copy the pull or compose line.</p></div>
-      <div><b><em>03</em>pull</b><p>${MODE === "private"
-        ? "with this host in <code>registry-mirrors</code>, <code>docker pull</code> just works."
-        : "run your own ddocker, add it to <code>registry-mirrors</code>, and <code>docker pull</code> just works."}</p></div>
+      <div><b><em>03</em>pull</b><p>with this host in <code>registry-mirrors</code>, <code>docker pull</code> just works.</p></div>` : `
+      <div><b><em>01</em>self-host</b><p>one small Worker on your own domain, on Cloudflare's free plan.</p></div>
+      <div><b><em>02</em>hand out keys</b><p>everyone gets a secret hostname that doubles as their access key.</p></div>
+      <div><b><em>03</em>pull</b><p>add it to <code>registry-mirrors</code> and <code>docker pull</code> just works.</p></div>`}
     </div>
     <article class="readme guide" id="guide" hidden></article>
     <button class="guide-toggle" id="guide-toggle" type="button" aria-expanded="false" aria-controls="guide"></button>`;

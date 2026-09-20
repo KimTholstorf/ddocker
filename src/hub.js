@@ -42,10 +42,13 @@ const README_DROP = new Set("script style iframe frame frameset object embed for
 
 export async function handleHub(url, env, mode) {
   const api = env.HUB_WEB_API || DEFAULT_HUB_API;
+  // The Hub browser belongs to the mirrors. PUBLIC_SEARCH=1 opts the public
+  // page in, at the cost of anonymous rate limits.
+  const search = mode === "private" || env.PUBLIC_SEARCH === "1";
 
   if (url.pathname === "/") {
     const github = escapeAttr(env.GITHUB_URL || "");
-    const page = HUB_PAGE.replace("<body>", `<body data-mode="${mode}" data-github="${github}">`);
+    const page = HUB_PAGE.replace("<body>", `<body data-mode="${mode}" data-search="${search ? "on" : "off"}" data-github="${github}">`);
     const headers = { ...BASE_HEADERS, "content-type": "text/html; charset=utf-8", "content-security-policy": PAGE_CSP };
     if (mode === "public") delete headers["x-robots-tag"]; // the front page may be indexed
     return new Response(page, { headers });
@@ -77,11 +80,15 @@ export async function handleHub(url, env, mode) {
     });
   }
 
+  if (!search && url.pathname.startsWith("/hub/api/") && url.pathname !== "/hub/api/guide") {
+    return json({ error: "the Docker Hub browser runs on mirror hostnames" }, 404);
+  }
+
   if (url.pathname === "/hub/api/search") {
     const query = (url.searchParams.get("q") || "").trim().slice(0, 100);
     if (!query) return json({ count: 0, hasNext: false, results: [] });
     const page = pageParam(url);
-    const data = await hubGet(api, `/v2/search/repositories/?query=${encodeURIComponent(query)}&page=${page}&page_size=25`);
+    const data = await hubGet(api, `/v2/search/repositories/?query=${encodeURIComponent(query)}&page=${page}&page_size=25`, env, mode === "private");
     if (data.error) return json(data, data.status);
     return json({
       count: data.count,
@@ -106,6 +113,8 @@ export async function handleHub(url, env, mode) {
     const data = await hubGet(
       api,
       `${repoPath}/tags?page_size=50&page=${pageParam(url)}&ordering=last_updated&name=${encodeURIComponent(filter)}`,
+      env,
+      mode === "private",
     );
     if (data.error) return json(data, data.status);
     return json({
@@ -121,7 +130,7 @@ export async function handleHub(url, env, mode) {
     });
   }
 
-  const repo = await hubGet(api, `${repoPath}/`);
+  const repo = await hubGet(api, `${repoPath}/`, env, mode === "private");
   if (repo.error) return json(repo, repo.status);
 
   if (kind === "repo") {
@@ -142,17 +151,60 @@ export async function handleHub(url, env, mode) {
   });
 }
 
-async function hubGet(api, path) {
+// Docker Hub rate-limits its API per IP for anonymous callers, and Cloudflare's
+// addresses are shared, so those limits are usually already spent. Exchanging
+// the Docker Hub token for an API token lifts the calls out of that pool. Only
+// mirror hostnames do this: searches from the public page would otherwise count
+// against the owner's Docker Hub account.
+let apiToken = null; // { token, expires }
+
+function jwtExpiry(token) {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    if (payload.exp) return payload.exp * 1000;
+  } catch {}
+  return Date.now() + 20 * 60 * 1000;
+}
+
+async function hubAuth(api, env, force = false) {
+  if (!env.HUB_USERNAME || !env.HUB_TOKEN) return null;
+  if (!force && apiToken && apiToken.expires > Date.now() + 60_000) return apiToken.token;
+  try {
+    const res = await fetch(api + "/v2/auth/token", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ identifier: env.HUB_USERNAME, secret: env.HUB_TOKEN }),
+    });
+    if (!res.ok) return null;
+    const { token } = await res.json();
+    if (!token) return null;
+    apiToken = { token, expires: jwtExpiry(token) };
+    return token;
+  } catch {
+    return null;
+  }
+}
+
+async function hubGet(api, path, env, authed) {
+  const fetchOnce = async (token) => {
+    const headers = { accept: "application/json", "user-agent": "ddocker-hub" };
+    if (token) headers.authorization = `Bearer ${token}`;
+    return fetch(api + path, { headers, cf: { cacheTtl: CACHE_SECONDS, cacheEverything: true } });
+  };
+
   let res;
   try {
-    res = await fetch(api + path, {
-      headers: { accept: "application/json", "user-agent": "ddocker-hub" },
-      cf: { cacheTtl: CACHE_SECONDS, cacheEverything: true },
-    });
+    res = await fetchOnce(authed ? await hubAuth(api, env) : null);
+    // An expired token: get a fresh one and retry once.
+    if (authed && (res.status === 401 || res.status === 429)) {
+      const token = await hubAuth(api, env, true);
+      if (token) res = await fetchOnce(token);
+    }
   } catch (err) {
     return { error: `Docker Hub unreachable: ${err.message}`, status: 502 };
   }
   if (res.status === 404) return { error: "Not found on Docker Hub", status: 404 };
+  if (res.status === 429) return { error: "Docker Hub is rate-limiting search right now", status: 503 };
   if (!res.ok) return { error: `Docker Hub returned ${res.status}`, status: 502 };
   return res.json();
 }

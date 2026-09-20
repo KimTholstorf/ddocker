@@ -17,6 +17,10 @@ compatibility_date = "2025-09-01"
 BASE_DOMAIN = ""
 # Optional. Linked from the public page's self-hosting guide and footer.
 GITHUB_URL = ""
+# The Docker Hub browser runs on mirror hostnames, where its API calls are
+# authenticated with HUB_TOKEN. Set to "1" to also offer search on the public
+# page, where calls are anonymous and often rate-limited by Docker Hub.
+PUBLIC_SEARCH = ""
 
 # Secrets (wrangler secret put <NAME>, or wrangler secret bulk):
 #   ACCESS_KEYS   comma-separated hostname labels, e.g. "alice-7h3k9q2m,bob-p4x8w1zt"
