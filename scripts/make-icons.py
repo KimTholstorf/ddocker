@@ -1,16 +1,24 @@
 #!/usr/bin/env python3
-"""Generate the site icons from the same pixel glyphs as the wordmark.
+"""Generate the site icons and the README wordmark from the same pixel glyphs.
 
     python3 scripts/make-icons.py
 
-Writes src/favicon.svg, src/favicon.ico and src/icon-180.png.
+Writes src/favicon.svg, src/favicon.ico, src/icon-180.png and docs/wordmark.svg.
 """
 import struct
 import zlib
 from pathlib import Path
 
 # 6x7 "d", the same glyph src/hub.client.js draws.
-GLYPH_D = ["111110", "110011", "110011", "110011", "110011", "110011", "111110"]
+GLYPHS = {
+    "d": ["111110", "110011", "110011", "110011", "110011", "110011", "111110"],
+    "o": ["011110", "110011", "110011", "110011", "110011", "110011", "011110"],
+    "c": ["011111", "110000", "110000", "110000", "110000", "110000", "011111"],
+    "k": ["110011", "110110", "111100", "111000", "111100", "110110", "110011"],
+    "e": ["111111", "110000", "110000", "111110", "110000", "110000", "111111"],
+    "r": ["111110", "110011", "110011", "111110", "111100", "110110", "110011"],
+}
+GLYPH_D = GLYPHS["d"]
 # Row colours, light band at the top down to the deepest blue, as on the page.
 BANDS = ["#a4b6ee", "#a4b6ee", "#7f9cf2", "#7f9cf2", "#4a78ef", "#4a78ef", "#1f47b8"]
 
@@ -89,9 +97,50 @@ def write_ico(path, size=32):
     path.write_bytes(header + entry + image)
 
 
+def write_wordmark(path, text="ddocker", cell=10):
+    """The hero wordmark: banded rows, with pixels dripping off some letters.
+
+    Mirrors wordmark() in src/hub.client.js, including its seeded drips.
+    """
+    seed = 7
+
+    def rand():
+        nonlocal seed
+        seed = (seed * 1664525 + 1013904223) % 4294967296
+        return seed / 4294967296
+
+    rects = []
+    x = 0
+    for char in text:
+        glyph = GLYPHS[char]
+        for y, row in enumerate(glyph):
+            for i, bit in enumerate(row):
+                if bit == "1":
+                    rects.append(
+                        f'<rect x="{(x + i) * cell}" y="{y * cell}" width="{cell}" height="{cell}" fill="{BANDS[y]}"/>'
+                    )
+        for i in range(6):
+            if glyph[6][i] == "1" and rand() < 0.16:
+                length = 1 + int(rand() * 2)
+                for d in range(1, length + 1):
+                    rects.append(
+                        f'<rect x="{(x + i) * cell}" y="{(6 + d) * cell}" width="{cell}" height="{cell}" fill="{BANDS[6]}"/>'
+                    )
+        x += len(glyph[0]) + 1
+
+    width, height = (x - 1) * cell, 9 * cell
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
+        f'width="{width}" height="{height}" shape-rendering="crispEdges" role="img" '
+        f'aria-label="{text}">{"".join(rects)}</svg>\n'
+    )
+
+
 if __name__ == "__main__":
     write_svg(SRC / "favicon.svg")
     write_ico(SRC / "favicon.ico")
     write_png(SRC / "icon-180.png", 176)  # 16x11 scale, close enough to 180
-    for name in ("favicon.svg", "favicon.ico", "icon-180.png"):
-        print(f"{name}: {(SRC / name).stat().st_size} bytes")
+    write_wordmark(SRC.parent / "docs" / "wordmark.svg")
+    for path in (SRC / "favicon.svg", SRC / "favicon.ico", SRC / "icon-180.png", SRC.parent / "docs" / "wordmark.svg"):
+        print(f"{path.name}: {path.stat().st_size} bytes")
