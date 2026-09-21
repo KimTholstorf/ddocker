@@ -24,6 +24,10 @@ const CACHE_SECONDS = 300;
 const TAGS_PER_PAGE = 100;
 const MAX_FILTER_PAGES = 12; // ~1200 tags scanned per filter request
 const GITHUB_PLACEHOLDER = "https://github.com/your-name/ddocker";
+// Where this code comes from. A deployment links to the source it runs, so
+// this is the default everywhere; GITHUB_URL only overrides it for forks that
+// actually changed the code.
+const SOURCE_URL = "https://github.com/KimTholstorf/ddocker";
 const REPO_PATH = /^\/hub\/api\/(repo|tags)\/([a-z0-9][a-z0-9._-]*)\/([a-z0-9][a-z0-9._-]*)$/;
 
 // The access key is in the hostname, so never let it leak via Referer.
@@ -38,14 +42,14 @@ const PAGE_CSP =
   "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; " +
   "frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
 
-export async function handleHub(url, env, mode) {
+export async function handleHub(url, env, mode, version) {
   // The Hub browser belongs to the mirrors. PUBLIC_SEARCH=1 opts the public
   // page in.
   const search = mode === "private" || env.PUBLIC_SEARCH === "1";
 
   if (url.pathname === "/") {
-    const github = escapeAttr(env.GITHUB_URL || "");
-    const page = HUB_PAGE.replace("<body>", `<body data-mode="${mode}" data-search="${search ? "on" : "off"}" data-github="${github}">`);
+    const github = escapeAttr(env.GITHUB_URL || SOURCE_URL);
+    const page = HUB_PAGE.replace("<body>", `<body data-mode="${mode}" data-search="${search ? "on" : "off"}" data-version="${escapeAttr(version)}" data-github="${github}">`);
     const headers = { ...BASE_HEADERS, "content-type": "text/html; charset=utf-8", "content-security-policy": PAGE_CSP };
     if (mode === "public") delete headers["x-robots-tag"]; // the front page may be indexed
     return new Response(page, { headers });
@@ -81,7 +85,7 @@ export async function handleHub(url, env, mode) {
   if (url.pathname === "/hub/api/guide") {
     const markdown = (mode === "private"
       ? SETUP_GUIDE.replaceAll("your-key.example.com", url.host)
-      : ABOUT_GUIDE.replaceAll(GITHUB_PLACEHOLDER, env.GITHUB_URL || GITHUB_PLACEHOLDER)
+      : ABOUT_GUIDE.replaceAll(GITHUB_PLACEHOLDER, env.GITHUB_URL || SOURCE_URL)
     ).replace(/^<!--[\s\S]*?-->\s*/, "");
     return new Response(marked.parse(markdown), {
       headers: { ...BASE_HEADERS, "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },

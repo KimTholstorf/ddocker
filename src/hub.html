@@ -227,6 +227,8 @@ body.home main { padding-top: 0; padding-bottom: 22px; }
 .readme ul { padding-left: 22px; }
 
 footer { border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); padding: 18px 0 28px; }
+footer a { color: inherit; }
+footer a:hover { color: var(--brand); }
 footer .wrap { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 
 @media (max-width: 680px) {
@@ -254,7 +256,7 @@ footer .wrap { display: flex; justify-content: space-between; gap: 12px; flex-wr
 </header>
 <div id="hero"></div>
 <main class="wrap" id="view"></main>
-<footer><div class="wrap"><span>ddocker // private docker hub mirror · read-only</span><span class="status" id="status" title="Checks that Docker Hub's registry answers through this mirror"><i></i><span id="status-text">mirror: checking</span></span></div></footer>
+<footer><div class="wrap"><span>ddocker <span id="version"></span> // private docker hub mirror · read-only</span><span class="status" id="status" title="Checks that Docker Hub's registry answers through this mirror"><i></i><span id="status-text">mirror: checking</span></span></div></footer>
 
 <script src="/hub/app.js" defer></script>
 </body>

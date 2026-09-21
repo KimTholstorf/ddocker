@@ -7,6 +7,7 @@ const GITHUB_URL = document.body.dataset.github || "";
 // The Hub browser runs on mirror hostnames; the public page is a front page
 // unless PUBLIC_SEARCH is set.
 const SEARCH = document.body.dataset.search === "on";
+const VERSION = document.body.dataset.version || "";
 const GUIDE_LABEL = MODE === "private" ? "client setup" : "about &amp; self-hosting";
 let searchTimer;
 
@@ -146,7 +147,15 @@ function setStatus(ok) {
   document.getElementById("status-text").textContent = `mirror ${ok ? "online" : "unreachable"} · checked ${time}`;
 }
 if (MODE === "private") {
-  fetch("/v2/", { cache: "no-store" })
+  if (VERSION) {
+  const tag = document.getElementById("version");
+  tag.textContent = `v${VERSION}`;
+  if (GITHUB_URL) {
+    tag.outerHTML = `<a href="${esc(GITHUB_URL)}/releases/tag/v${esc(VERSION)}" rel="noopener">v${esc(VERSION)}</a>`;
+  }
+}
+
+fetch("/v2/", { cache: "no-store" })
     .then((r) => setStatus(r.status === 401 || r.ok))
     .catch(() => setStatus(false));
 } else {
@@ -213,7 +222,7 @@ function showHome(guideOpen = false) {
   }
   view.innerHTML = `
     <div class="steps">${SEARCH ? `
-      <div><b><em>01</em>search</b><p>find an image and read its README, even when hub.docker.com is blocked.</p></div>
+      <div><b><em>01</em>search</b><p>find any image on Docker Hub, even when hub.docker.com is blocked.</p></div>
       <div><b><em>02</em>pick a tag</b><p>filter the tag list, then copy the pull or compose line for it.</p></div>
       <div><b><em>03</em>pull</b><p>with this host in <code>registry-mirrors</code>, <code>docker pull</code> just works.</p></div>` : `
       <div><b><em>01</em>self-host</b><p>one small Worker on your own domain, on Cloudflare's free plan.</p></div>

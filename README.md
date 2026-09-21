@@ -45,7 +45,7 @@ shared IP addresses, which run into limits much sooner.
 | Docker Hub browser | off (set `PUBLIC_SEARCH=1` to enable) | search and tags, using the same token as pulls |
 | Guide section | about & self-hosting, from [docs/about.md](docs/about.md) | client setup, from [docs/setup-guide.md](docs/setup-guide.md), with the reader's hostname filled in |
 | Registry (`/v2`, `/token`) | refused | the mirror |
-| Footer | link to `GITHUB_URL` | mirror status |
+| Footer | version and a link to the source | version and mirror status |
 | Search engines | may index it | `noindex` |
 
 Anything else, `www` or a wrong key, redirects to the public page.
@@ -76,9 +76,10 @@ for both.
    npm ci
    npx wrangler deploy \
      --route "example.com/*" --route "*.example.com/*" \
-     --var BASE_DOMAIN:example.com \
-     --var GITHUB_URL:https://github.com/you/ddocker
+     --var BASE_DOMAIN:example.com
    ```
+   The page links back to this repository as the source it runs. If you fork it and change the
+   code, point people at your fork with `--var GITHUB_URL:https://github.com/you/ddocker`.
 5. Check it:
    ```bash
    ./ddocker-doctor.sh alice-3f9a1c7b2e4d6a8b0c1e3f5a7b9d2c4e.example.com

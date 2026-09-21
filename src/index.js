@@ -13,6 +13,7 @@
 // The domain comes from the BASE_DOMAIN variable.
 
 import { handleHub } from "./hub.js";
+import { version as VERSION } from "../package.json";
 
 const UPSTREAM_REGISTRY = "https://registry-1.docker.io";
 const UPSTREAM_AUTH = "https://auth.docker.io/token";
@@ -45,9 +46,15 @@ export default {
     if (url.pathname === "/token") return handleToken(url, env);
     if (isRegistry) return handleRegistry(request, url);
 
+    if (url.pathname === "/version") {
+      return new Response(JSON.stringify({ name: "ddocker", version: VERSION }), {
+        headers: { "content-type": "application/json", "cache-control": "no-store" },
+      });
+    }
+
     if (url.pathname === "/hub" || url.pathname === "/hub/") return Response.redirect(`${url.origin}/`, 301);
     const isIcon = url.pathname === "/favicon.svg" || url.pathname === "/favicon.ico" || url.pathname === "/icon-180.png";
-    if (url.pathname === "/" || url.pathname.startsWith("/hub/") || isIcon) return handleHub(url, env, mode);
+    if (url.pathname === "/" || url.pathname.startsWith("/hub/") || isIcon) return handleHub(url, env, mode, VERSION);
     return new Response("not found", { status: 404 });
   },
 };

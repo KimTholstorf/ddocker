@@ -15,7 +15,8 @@ compatibility_date = "2025-09-01"
 # Your domain. The bare domain serves the public page; <key>.<domain> are the mirrors.
 # Required: set it here, in .dev.vars, or with --var BASE_DOMAIN:example.com.
 BASE_DOMAIN = ""
-# Optional. Linked from the public page's self-hosting guide and footer.
+# Optional. The page links to the source it runs, which defaults to the ddocker
+# repository. Set this only if you run a fork with your own changes.
 GITHUB_URL = ""
 # The Docker Hub browser runs on mirror hostnames, where its API calls are
 # authenticated with HUB_TOKEN. Set to "1" to also offer search on the public

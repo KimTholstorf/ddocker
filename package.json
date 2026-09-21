@@ -1,6 +1,7 @@
 {
   "name": "ddocker",
   "private": true,
+  "version": "0.6.0",
   "type": "module",
   "license": "MIT",
   "scripts": {
